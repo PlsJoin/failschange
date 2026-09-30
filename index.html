@@ -3,117 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生産性皆無の部屋</title>
+    <title>究極の虚無ゲーム：連打の極み</title>
     <style>
+        * { box-sizing: border-box; user-select: none; }
         body {
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: #111;
-            color: #fff;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #0d0e15; color: #fff;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            overflow: hidden; display: flex; flex-direction: column;
+            justify-content: space-between; align-items: center;
+            transition: background-color 0.3s;
+        }
+        /* ヘッダー情報 */
+        #ui-layer {
+            width: 100%; padding: 20px; display: flex;
+            justify-content: space-around; background: rgba(0,0,0,0.4);
+            z-index: 10; font-size: 1.5rem; text-shadow: 0 0 10px #00fff2;
+        }
+        .score-box { text-align: center; }
+        .val { color: #ff007f; font-size: 2rem; display: block; }
+
+        /* メインステージ */
+        #stage { flex-grow: 1; width: 100%; position: relative; }
+
+        /* ターゲットボタン */
+        .target-btn {
+            position: absolute; padding: 15px 30px;
+            font-size: 1.3rem; font-weight: bold; color: white;
+            background: linear-gradient(45deg, #ff0055, #7a00ff);
+            border: 3px solid #fff; border-radius: 10px;
+            cursor: pointer; box-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
+            transition: transform 0.1s ease; z-index: 5;
         }
 
-        h1 {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: #555;
-            user-select: none;
+        /* 飛び散る煽り文句（パーティクル） */
+        .toast {
+            position: absolute; pointer-events: none;
+            font-size: 1.8rem; font-weight: bold; color: #ffeb3b;
+            animation: floatUp 0.8s ease-out forwards; z-index: 8;
+            text-shadow: 2px 2px 0 #000;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.5); opacity: 1; }
+            100% { transform: translateY(-100px) scale(1.2); opacity: 0; }
         }
 
-        /* 逃げるボタンのスタイル */
-        #escape-btn {
-            position: absolute;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            background-color: #ff4757;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.4);
-            transition: transform 0.1s ease;
-        }
-
-        /* 煽りテキストのスタイル */
-        #msg {
-            position: absolute;
-            top: 20%;
-            font-size: 2rem;
-            font-weight: bold;
-            color: #ffd32a;
-            text-shadow: 0 0 10px rgba(255, 211, 42, 0.5);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            user-select: none;
-            text-align: center;
+        /* フッターの煽り */
+        #footer-msg {
+            padding: 15px; font-size: 1.2rem; color: #666;
+            letter-spacing: 2px; text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <h1>暇つぶし専用（生産性：0）</h1>
-    <div id="msg">ほらほらーー！！</div>
-    <button id="escape-btn">ここをクリック</button>
+    <div id="ui-layer">
+        <div class="score-box">クリック成功回数<span id="score" class="val">0</span></div>
+        <div class="score-box">あなたの失った時間<span id="timer" class="val">0秒</span></div>
+        <div class="score-box">世界のバカ度<span id="level" class="val">1</span></div>
+    </div>
+
+    <div id="stage">
+        <button id="main-btn" class="target-btn">ここをクリックお！</button>
+    </div>
+
+    <div id="footer-msg">※このゲームをクリアしても、人生に何も残りません。</div>
 
     <script>
-        const btn = document.getElementById('escape-btn');
-        const msg = document.getElementById('msg');
+        const stage = document.getElementById('stage');
+        const mainBtn = document.getElementById('main-btn');
+        const scoreEl = document.getElementById('score');
+        const timerEl = document.getElementById('timer');
+        const levelEl = document.getElementById('level');
 
-        // 煽り文句のバリエーション
-        const insults = [
-            "遅いお！遅すぎるお！",
-            "当ててみなーー！お！",
-            "あ、逃げたおｗｗｗ",
-            "エイム悪すぎだお？",
-            "クリックされたら悔しいお！",
-            "虚無だお！楽しいかおこれ？"
-        ];
+        let score = 0;
+        let level = 1;
+        let startTime = Date.now();
 
-        // 最初は画面中央付近に配置
-        btn.style.left = 'calc(50% - 75px)';
-        btn.style.top = 'calc(50% - 25px)';
+        // 煽りテキストの弾幕用リスト
+        const words = ["遅いお！", "おしいお！", "残像だお", "エイム最悪おｗ", "無駄な努力お！", "手が震えてるお？", "何が楽しいかおこれ？", "生産性ゼロ！", "クリックしてみろお！"];
 
-        // マウスが近づいた（またはタップしようとした）時の処理
-        function escape(e) {
-            // 画面の幅と高さ（ボタンがはみ出さないようにマージンを取る）
-            const padding = 100;
-            const maxX = window.innerWidth - padding;
-            const maxY = window.innerHeight - padding;
+        // 初期配置
+        resetButton(mainBtn);
 
-            // ランダムな座標にワープ
-            const newX = Math.random() * (maxX - padding) + padding / 2;
-            const newY = Math.random() * (maxY - padding) + padding / 2;
+        // 時間の計測（失った時間）
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timerEl.innerText = elapsed + "秒";
+        }, 1000);
 
-            btn.style.left = `${newX}px`;
-            btn.style.top = `${newY}px`;
-
-            // ランダムに煽り文句を表示
-            const randomMsg = insults[Math.floor(Math.random() * insults.length)];
-            msg.innerText = randomMsg;
-            msg.style.opacity = 1;
-
-            // ちょっとボタンを大きくして煽る
-            btn.style.transform = `scale(${1 + Math.random() * 0.3})`;
+        // ボタンの位置をステージ内のランダムな場所に飛ばす関数
+        function resetButton(btn) {
+            const margin = 120;
+            const maxX = stage.clientWidth - margin;
+            const maxY = stage.clientHeight - margin;
+            
+            const x = Math.max(20, Math.random() * maxX);
+            const y = Math.max(20, Math.random() * maxY);
+            
+            btn.style.left = `${x}px`;
+            btn.style.top = `${y}px`;
         }
 
-        // マウスホバーとタッチイベントの両方に対応
-        btn.addEventListener('mouseenter', escape);
-        btn.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // スマホでのズーム等を防ぐ
-            escape();
+        // カーソルが近づいた時の処理（ホバーで逃げる）
+        function escape(e) {
+            resetButton(mainBtn);
+            
+            // 逃げるたびに確率でポップアップテキスト（煽り）を生成
+            createToast(e.clientX, e.clientY);
+
+            // レベル（バカ度）が上がると、たまに画面の色がバグる効果
+            if (level > 2 && Math.random() > 0.6) {
+                document.body.style.backgroundColor = `hsl(${Math.random() * 360}, 50%, 15%)`;
+            }
+        }
+
+        // 煽りテキストを画面に生成する
+        function createToast(x, y) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = words[Math.floor(Math.random() * words.length)];
+            toast.style.left = `${x || window.innerWidth/2}px`;
+            toast.style.top = `${y || window.innerHeight/2}px`;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 800);
+        }
+
+        // 奇跡的にクリックに成功したとき
+        mainBtn.addEventListener('click', (e) => {
+            score++;
+            level = Math.floor(score / 2) + 1; // 2回成功ごとにレベルアップ
+            
+            scoreEl.innerText = score;
+            levelEl.innerText = level;
+            
+            // 祝福の爆発風エフェクト
+            for(let i=0; i<5; i++) {
+                setTimeout(() => createToast(e.clientX + (Math.random()-0.5)*100, e.clientY + (Math.random()-0.5)*100), i*100);
+            }
+
+            // 【嫌がらせ追加】レベルが上がると、ダミーの「逃げないボタン」が増殖して視界を遮る
+            if (score % 2 === 0) {
+                createDummyButton();
+            }
+
+            // メインボタンはさらに小さくなって逃げやすくなる
+            mainBtn.style.transform = `scale(${Math.max(0.5, 1 - score * 0.05)})`;
+            resetButton(mainBtn);
         });
 
-        // 万が一クリックできちゃった時（基本無理だけどPCのバグ等で）
-        btn.addEventListener('click', () => {
-            alert('！？！？ クリックできちゃったお…あなたの勝ちだお…（虚無）');
+        // ダミーボタン（クリックしても何も起きない、ただ邪魔なボタン）を作る
+        function createDummyButton() {
+            const dummy = document.createElement('button');
+            dummy.className = 'target-btn';
+            dummy.innerText = "こっちだお！";
+            dummy.style.background = "linear-gradient(45deg, #4cd137, #4bcffa)";
+            dummy.style.opacity = "0.7";
+            resetButton(dummy);
+            
+            // ダミーをクリックすると煽られる
+            dummy.addEventListener('click', (e) => {
+                createToast(e.clientX, e.clientY);
+                dummy.innerText = "偽物だおｗｗｗ";
+                resetButton(dummy);
+            });
+
+            stage.appendChild(dummy);
+        }
+
+        // イベント登録（PC・スマホ両対応）
+        mainBtn.addEventListener('mouseenter', escape);
+        mainBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            escape(e.touches[0]);
         });
     </script>
 </body>
